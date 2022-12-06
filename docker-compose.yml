@@ -1,0 +1,39 @@
+services:
+  postgresql:
+    image: postgres:latest
+    networks:
+      - db
+      - web
+    volumes:
+      - ./db/init/create-table.sql:/docker-entrypoint-initdb.d/create_tables.sql
+      - ./db/data:/var/lib/postgresql/data
+    restart: always
+    environment:
+      POSTGRES_USER: pgsql
+      POSTGRES_PASSWORD: pgsql
+      POSTGRES_DB: measurements
+  pgadmin:
+    depends_on:
+      - postgresql
+    image: dpage/pgadmin4:latest
+    networks:
+      - db
+    ports:
+      - 80:80
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: petru.rotaru@stud.acs.upb.ro
+      PGADMIN_DEFAULT_PASSWORD: pgadmin
+  api:
+    depends_on:
+      - postgresql
+    build:
+      .
+    networks:
+      - web
+    ports:
+      - 5000:5000
+
+networks:
+  db:
+  web:
