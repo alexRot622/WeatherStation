@@ -61,6 +61,7 @@ class Countries(Resource):
             int(req['id'])
         except ValueError:
             app.logger.warning('in request ' + str(req) + ', id is not an integer')
+            return 400
 
         return Countries.checkCountry(req)
 
@@ -96,7 +97,7 @@ class Countries(Resource):
 
         # Retrieve ID of country, if the insert was succesful
         try:
-            country_id = cur.fetchone()
+            country_id = cur.fetchone()[0]
         except psycopg2.ProgrammingError:
             cur.close()
             conn.rollback()
@@ -107,7 +108,7 @@ class Countries(Resource):
         conn.commit()
 
         app.logger.info(str(country) + ' was inserted in database with id ' + str(country_id))
-        return country_id, 201
+        return {'id': country_id}, 201
 
 
     def get(self):
@@ -155,7 +156,7 @@ class Countries(Resource):
         cur.close()
         conn.commit()
 
-        app.logger.info('country with id='str(id) + ' was updated in database to ' + str(country))
+        app.logger.info('country with id=' + str(id) + ' was updated in database to ' + str(country))
         return {}, 200
 
 
@@ -187,7 +188,7 @@ class Countries(Resource):
         cur.close()
         conn.commit()
 
-        app.logger.info('country with id='str(id) + ' was deleted from database')
+        app.logger.info('country with id=' + str(id) + ' was deleted from database')
         return {}, 200
 
 
@@ -229,7 +230,7 @@ class Cities(Resource):
             app.logger.warning('request ' + str(req) + ' does not contain correct number of parameters')
             return 400
 
-        return Cities.checkCountry(req)
+        return Cities.checkCity(req)
 
 
     # Check that the request body is correctly formatted for PUT request
@@ -246,6 +247,10 @@ class Cities(Resource):
             int(req['id'])
         except ValueError:
             app.logger.warning('in request ' + str(req) + ', id is not an integer')
+            return 400
+        
+        return Cities.checkCity(req)
+
 
     def post(self):
         global app
@@ -278,7 +283,7 @@ class Cities(Resource):
 
         # Retrieve ID of city, if the insert was succesful
         try:
-            city_id = cur.fetchone()
+            city_id = cur.fetchone()[0]
         except psycopg2.ProgrammingError:
             cur.close()
             conn.rollback()
@@ -289,7 +294,7 @@ class Cities(Resource):
         conn.commit()
 
         app.logger.info(str(city) + ' was inserted in database with id ' + str(city_id))
-        return city_id, 201
+        return {'id': city_id}, 201
 
 
     def get(self):
@@ -388,7 +393,7 @@ class Cities(Resource):
         cur.close()
         conn.commit()
 
-        app.logger.info('country with id='str(id) + ' was deleted from database')
+        app.logger.info('country with id=' + str(id) + ' was deleted from database')
         return {}, 200
 
 class Temperatures(Resource):
@@ -423,7 +428,7 @@ class Temperatures(Resource):
             app.logger.warning('request ' + str(req) + ' does not contain correct number of parameters')
             return 400
 
-        return Cities.checkCountry(req)
+        return Cities.checkCity(req)
 
 
     # Check that the request body is correctly formatted for PUT request
@@ -440,6 +445,9 @@ class Temperatures(Resource):
             int(req['id'])
         except ValueError:
             app.logger.warning('in request ' + str(req) + ', id is not an integer')
+            return 400
+
+        return Cities.checkCity(req)
 
     def post(self):
         global app
@@ -472,7 +480,7 @@ class Temperatures(Resource):
 
         # Retrieve ID of the inserted temperature, if the insert was succesful
         try:
-            temp_id = cur.fetchone()
+            temp_id = cur.fetchone()[0]
         except psycopg2.ProgrammingError:
             cur.close()
             conn.rollback()
@@ -483,7 +491,7 @@ class Temperatures(Resource):
         conn.commit()
 
         app.logger.info(str(temp) + ' was inserted in database with id ' + str(temp_id))
-        return temp_id, 201
+        return {'id': temp_id}, 201
 
 
     def put(self, id):
@@ -519,7 +527,7 @@ class Temperatures(Resource):
         cur.close()
         conn.commit()
 
-        app.logger.info('temperature with id='str(id) + ' was updated in database to ' + str(temp))
+        app.logger.info('temperature with id=' + str(id) + ' was updated in database to ' + str(temp))
         return {}, 200
 
 
@@ -551,7 +559,7 @@ class Temperatures(Resource):
         cur.close()
         conn.commit()
 
-        app.logger.info('country with id='str(id) + ' was deleted from database')
+        app.logger.info('country with id=' + str(id) + ' was deleted from database')
         return {}, 200
 
     
@@ -666,16 +674,18 @@ if __name__ == '__main__':
     app.logger.info('Connecting to database')
     conn = getConnection()
 
-    api.add_resource(Countries, '/api/countries')
-    api.add_resource(Countries, '/api/countries/<int:id>')
+    api.add_resource(Countries, '/api/countries', endpoint='countries')
+    api.add_resource(Countries, '/api/countries/<int:id>', endpoint='countries_id')
 
-    api.add_resource(Countries, '/api/cities')
-    api.add_resource(Countries, '/api/cities/<int:id>')
+    api.add_resource(Cities, '/api/cities', endpoint='cities')
+    api.add_resource(Cities, '/api/cities/<int:id>', endpoint='cities_id')
 
-    api.add_resource(Temperatures, '/api/temperatures')
-    api.add_resource(Temperatures, '/api/temperatures/<int:id>')
+    api.add_resource(Temperatures, '/api/temperatures', endpoint='temperatures')
+    api.add_resource(Temperatures, '/api/temperatures/<int:id>', endpoint='temperatures_id')
 
-    api.add_resource(TemperaturesCities, '/api/temperatures/cities/<int:id>')
-    api.add_resource(TemperaturesCountries, '/api/temperatures/countries/<int:id>')
+    api.add_resource(TemperaturesCities, '/api/temperatures/cities/<int:id>',
+                     endpoint='temperatures_cities')
+    api.add_resource(TemperaturesCountries, '/api/temperatures/countries/<int:id>',
+                     endpoint='temperatures_countries')
 
     app.run(host='0.0.0.0', port=5000)
