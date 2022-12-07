@@ -24,4 +24,6 @@ CREATE TABLE IF NOT EXISTS Temperaturi (
     id_oras   serial    UNIQUE NOT NULL
 
     CONSTRAINT unic_timp_oras UNIQUE(id_oras, timestamp)
+    CONSTRAINT FK_id_oras FOREIGN KEY(id_oras)
+	REFERENCES Orase(id)
 );
