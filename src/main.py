@@ -1,5 +1,6 @@
 import logging
 import datetime
+import signal
 from time import sleep
 
 from flask import Flask, request
@@ -13,6 +14,19 @@ def getConnection():
         user='pgsql',
         password='pgsql'
     )
+
+
+def handler(signum, frame):
+    global app
+    global conn
+
+    if conn:
+        app.logger.info("Database connection closed")
+        conn.close()
+    if app:
+        app.logger.info("Shutting down")
+
+    exit()
 
 
 class Countries(Resource):
@@ -705,10 +719,11 @@ class TemperaturesCountries(Resource):
 
         return rows, 200
 
-# TODO: Close database cursors and connection during shutdown
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, handler)
     logging.basicConfig(level=logging.INFO)
+
     app = Flask(__name__)
     api = Api(app)
 
