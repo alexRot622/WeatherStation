@@ -120,6 +120,10 @@ class Countries(Resource):
         rows = cur.fetchall()
         cur.close()
 
+        # Format response as a list of dictionaries
+        cols = ['id', 'nume', 'lat', 'lon']
+        rows = [dict(zip(cols, row)) for row in rows]
+
         return rows, 200
 
 
@@ -306,28 +310,13 @@ class Cities(Resource):
         rows = cur.fetchall()
         cur.close()
 
+        # Format response as a list of dictionaries
+        cols = ['id', 'idTara', 'nume', 'lat', 'lon']
+        rows = [dict(zip(cols, row)) for row in rows]
+
         return rows, 200
 
     
-    def get(self, id):
-        global app
-
-        # TODO: try: is id int? then convert to int
-
-        global conn
-
-        cur = conn.cursor()
-        cur.execute("""
-                    SELECT * FROM Orase
-                    WHERE id_tara = %s;
-                    """,
-                    (id,))
-        rows = cur.fetchall()
-        cur.close()
-
-        return rows, 200
-    
-
     def put(self, id):
         global app
 
@@ -395,6 +384,29 @@ class Cities(Resource):
 
         app.logger.info('country with id=' + str(id) + ' was deleted from database')
         return {}, 200
+
+class CitiesCountry(Resource):
+    def get(self, id):
+        global app
+
+        # TODO: try: is id int? then convert to int
+
+        global conn
+
+        cur = conn.cursor()
+        cur.execute("""
+                    SELECT * FROM Orase
+                    WHERE id_tara = %s;
+                    """,
+                    (id,))
+        rows = cur.fetchall()
+        cur.close()
+
+        # Format response as a list of dictionaries
+        cols = ['id', 'idTara', 'nume', 'lat', 'lon']
+        rows = [dict(zip(cols, row)) for row in rows]
+
+        return rows, 200
 
 class Temperatures(Resource):
     # Check that the request body is correctly formatted as a city
@@ -593,6 +605,10 @@ class Temperatures(Resource):
         rows = cur.fetchall()
         cur.close()
 
+        # Format response as a list of dictionaries
+        cols = ['id', 'valoare', 'timestamp']
+        rows = [dict(zip(cols, row)) for row in rows]
+
         return rows, 200
 
 
@@ -679,6 +695,7 @@ if __name__ == '__main__':
 
     api.add_resource(Cities, '/api/cities', endpoint='cities')
     api.add_resource(Cities, '/api/cities/<int:id>', endpoint='cities_id')
+    api.add_resource(CitiesCountry, '/api/cities/country/<int:id>', endpoint='cities_country_id')
 
     api.add_resource(Temperatures, '/api/temperatures', endpoint='temperatures')
     api.add_resource(Temperatures, '/api/temperatures/<int:id>', endpoint='temperatures_id')
