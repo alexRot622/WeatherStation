@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS Orase (
     latitudine  REAL         NOT NULL,
     longitudine REAL         NOT NULL,
 
-    CONSTRAINT unic_tara_oras UNIQUE(id_tara, nume_oras)
+    UNIQUE (id_tara, nume_oras),
     CONSTRAINT FK_id_tara FOREIGN KEY(id_tara)
         REFERENCES Tari(id)
 );
@@ -21,9 +21,9 @@ CREATE TABLE IF NOT EXISTS Temperaturi (
     id        serial    PRIMARY KEY,
     valoare   REAL      NOT NULL,
     timestamp timestamp UNIQUE NOT NULL,
-    id_oras   serial    UNIQUE NOT NULL
+    id_oras   serial    UNIQUE NOT NULL,
 
-    CONSTRAINT unic_timp_oras UNIQUE(id_oras, timestamp)
+    UNIQUE (id_oras, timestamp),
     CONSTRAINT FK_id_oras FOREIGN KEY(id_oras)
 	REFERENCES Orase(id)
 );
