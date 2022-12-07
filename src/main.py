@@ -142,7 +142,7 @@ class Countries(Resource):
         try:
             cur.execute("""
                         UPDATE Tari
-                        SET id = %s, nume = %s, latitudine = %s, longitudine = %s
+                        SET id = %s, nume_tara = %s, latitudine = %s, longitudine = %s
                         WHERE id = %s;
                         """,
                         (country['id'], country['nume'], country['lat'], country['lon'], id))
