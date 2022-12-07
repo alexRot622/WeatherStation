@@ -706,16 +706,11 @@ class TemperaturesCountries(Resource):
         return rows, 200
 
 # TODO: Close database cursors and connection during shutdown
-# TODO: Health check in docker compose before connection to DB
-# TODO: Triggers for delete
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     app = Flask(__name__)
     api = Api(app)
-
-    app.logger.info('Waiting for database start up')
-    sleep(10.0) #TODO: Replace this with health check
 
     app.logger.info('Connecting to database')
     conn = getConnection()

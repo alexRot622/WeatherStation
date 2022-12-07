@@ -12,9 +12,16 @@ services:
       POSTGRES_USER: pgsql
       POSTGRES_PASSWORD: pgsql
       POSTGRES_DB: measurements
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d measurements -U pgsql"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
   pgadmin:
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
     image: dpage/pgadmin4:latest
     networks:
       - db
@@ -27,7 +34,8 @@ services:
       PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 50
   api:
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
     build:
       .
     networks:
