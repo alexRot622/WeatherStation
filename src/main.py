@@ -269,7 +269,7 @@ class Cities(Resource):
         cur = conn.cursor()
         try:
             cur.execute("""
-                        INSERT INTO Orase(id_tara, nume, latitudine, longitudine)
+                        INSERT INTO Orase(id_tara, nume_oras, latitudine, longitudine)
                         VALUES (%(idTara)s, %(nume)s, %(lat)s, %(lon)s)
                         RETURNING id;
                         """,
@@ -322,7 +322,7 @@ class Cities(Resource):
 
         # TODO: try: is id int? then convert to int
         city = request.get_json()
-        err = Cities.checkPutRequest(country)
+        err = Cities.checkPutRequest(city)
         if err:
             return {}, err
 
@@ -332,7 +332,7 @@ class Cities(Resource):
         try:
             cur.execute("""
                         UPDATE Orase
-                        SET id = %s, id_tara = %s, nume = %s, latitudine = %s, longitudine = %s
+                        SET id = %s, id_tara = %s, nume_oras = %s, latitudine = %s, longitudine = %s
                         WHERE id = %s;
                         """,
                         (city['id'], city['idTara'], city['nume'], city['lat'], city['lon'], id))
@@ -579,11 +579,11 @@ class Temperatures(Resource):
         global app
 
         parser = reqparse.RequestParser()
-        parser.add_argument('lat', type=float)
-        parser.add_argument('lon', type=float)
+        parser.add_argument('lat', default=None, required=False, type=float)
+        parser.add_argument('lon', default=None, required=False, type=float)
         # TODO: Check if from, until are correct timestamps?
-        parser.add_argument('from', type=str)
-        parser.add_argument('until', type=str)
+        parser.add_argument('from', default=None, required=False, type=str)
+        parser.add_argument('until', default=None, required=False, type=str)
         args = parser.parse_args()
 
         global conn
@@ -618,8 +618,8 @@ class TemperaturesCities(Resource):
 
         parser = reqparse.RequestParser()
         # TODO: Check if from, until are correct timestamps?
-        parser.add_argument('from', type=str)
-        parser.add_argument('until', type=str)
+        parser.add_argument('from', default=None, required=False, type=str)
+        parser.add_argument('until', default=None, required=False, type=str)
         args = parser.parse_args()
         args['id'] = id
 
@@ -650,8 +650,8 @@ class TemperaturesCountries(Resource):
 
         parser = reqparse.RequestParser()
         # TODO: Check if from, until are correct timestamps?
-        parser.add_argument('from', type=str)
-        parser.add_argument('until', type=str)
+        parser.add_argument('from', default=None, required=False, type=str)
+        parser.add_argument('until', default=None, required=False, type=str)
         args = parser.parse_args()
         args['id'] = id
 
