@@ -1,6 +1,6 @@
 import logging
 from flask import Flask, request
-from flask_restful import Resource, Api
+from flask_restful import Resource, Api, reqparse
 from time import sleep
 import psycopg2
 
@@ -138,7 +138,7 @@ class Countries(Resource):
             cur.execute("""
                         UPDATE Tari
                         SET id = %s, nume = %s, latitudine = %s, longitudine = %s
-                        WHERE id = %s
+                        WHERE id = %s;
                         """,
                         (country['id'], country['nume'], country['lat'], country['lon'], id))
         except psycopg2.errors.DataError:
@@ -170,9 +170,9 @@ class Countries(Resource):
         try:
             cur.execute("""
                         DELETE FROM Tari
-                        WHERE id = %s
+                        WHERE id = %s;
                         """,
-                        (id))
+                        (id,))
         except psycopg2.errors.DataError:
             cur.close()
             conn.rollback()
@@ -181,7 +181,7 @@ class Countries(Resource):
         except psycopg2.errors.DatabaseError:
             cur.close()
             conn.rollback()
-            app.logger.error(str(country) + ' could not be deleted from database')
+            app.logger.error('id=' + str(id) + ' could not be deleted from database')
             return {}, 400
 
         cur.close()
@@ -314,9 +314,9 @@ class Cities(Resource):
         cur = conn.cursor()
         cur.execute("""
                     SELECT * FROM Orase
-                    WHERE idTara = %s;
+                    WHERE id_tara = %s;
                     """,
-                    (id))
+                    (id,))
         rows = cur.fetchall()
         cur.close()
 
@@ -338,8 +338,8 @@ class Cities(Resource):
         try:
             cur.execute("""
                         UPDATE Orase
-                        SET id = %s, idTara = %s, nume = %s, latitudine = %s, longitudine = %s
-                        WHERE id = %s
+                        SET id = %s, id_tara = %s, nume = %s, latitudine = %s, longitudine = %s
+                        WHERE id = %s;
                         """,
                         (city['id'], city['idTara'], city['nume'], city['lat'], city['lon'], id))
         except psycopg2.errors.DataError:
@@ -356,7 +356,7 @@ class Cities(Resource):
         cur.close()
         conn.commit()
 
-        app.logger.info('city with id='str(id) + ' was updated in database to ' + str(city))
+        app.logger.info('city with id=' + str(id) + ' was updated in database to ' + str(city))
         return {}, 200
 
 
@@ -371,9 +371,9 @@ class Cities(Resource):
         try:
             cur.execute("""
                         DELETE FROM Orase
-                        WHERE id = %s
+                        WHERE id = %s;
                         """,
-                        (id))
+                        (id,))
         except psycopg2.errors.DataError:
             cur.close()
             conn.rollback()
@@ -382,7 +382,7 @@ class Cities(Resource):
         except psycopg2.errors.DatabaseError:
             cur.close()
             conn.rollback()
-            app.logger.error(str(city) + ' could not be deleted from database')
+            app.logger.error('id=' + str(id) + ' could not be deleted from database')
             return {}, 400
 
         cur.close()
@@ -390,6 +390,266 @@ class Cities(Resource):
 
         app.logger.info('country with id='str(id) + ' was deleted from database')
         return {}, 200
+
+class Temperatures(Resource):
+    # Check that the request body is correctly formatted as a city
+    def checkTemperature(req):
+        global app
+
+        if 'idOras' not in req or 'valoare' not in req:
+            app.logger.warning('request ' + str(req) + ' does not contain a temperature')
+            return 400
+
+        try:
+            float(req['idOras'])
+        except ValueError:
+            app.logger.warning('in request ' + str(req) + ', idOras is not an integer')
+            return 400
+
+        try:
+            float(req['valoare'])
+        except ValueError:
+            app.logger.warning('in request ' + str(req) + ', valoare is not a real number')
+            return 400
+
+        return None
+
+
+    # Check that the request body is correctly formatted for POST request
+    def checkPostRequest(req):
+        global app
+
+        if len(req) != 2:
+            app.logger.warning('request ' + str(req) + ' does not contain correct number of parameters')
+            return 400
+
+        return Cities.checkCountry(req)
+
+
+    # Check that the request body is correctly formatted for PUT request
+    def checkPutRequest(req):
+        global app
+
+        if len(req) != 3:
+            app.logger.warning('request ' + str(req) + ' does not contain correct number of parameters')
+            return 400
+        if 'id' not in req:
+            app.logger.warning('request ' + str(req) + ' does not contain an id')
+            return 400
+        try:
+            int(req['id'])
+        except ValueError:
+            app.logger.warning('in request ' + str(req) + ', id is not an integer')
+
+    def post(self):
+        global app
+
+        temp = request.get_json()
+        err = Temperatures.checkPostRequest(temp)
+        if err:
+            return {}, err
+
+        # Execute INSERT SQL operation
+        global conn
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                        INSERT INTO Temperaturi(valoare, timestamp, id_oras)
+                        VALUES (%(valoare)s, %(timestamp)s, %(idOras)s)
+                        RETURNING id;
+                        """,
+                        temp)
+        except psycopg2.errors.UniqueViolation:
+            cur.close()
+            conn.rollback()
+            app.logger.warning('Temperature for ' + str((temp['id_oras'], temp['timestamp'])) + ' already exists in table')
+            return {}, 409
+        except psycopg2.errors.DatabaseError:
+            cur.close()
+            conn.rollback()
+            app.logger.error(str(temp) + ' could not be inserted in database')
+            return {}, 409
+
+        # Retrieve ID of the inserted temperature, if the insert was succesful
+        try:
+            temp_id = cur.fetchone()
+        except psycopg2.ProgrammingError:
+            cur.close()
+            conn.rollback()
+            app.logger.error(str(temp) + ' could not be inserted in database')
+            return {}, 400
+
+        cur.close()
+        conn.commit()
+
+        app.logger.info(str(temp) + ' was inserted in database with id ' + str(temp_id))
+        return temp_id, 201
+
+
+    def put(self, id):
+        global app
+
+        # TODO: try: is id int? then convert to int
+        temp = request.get_json()
+        err = Cities.checkPutRequest(temp)
+        if err:
+            return {}, err
+
+        # Execute UPDATE SQL operation
+        global conn
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                        UPDATE Temperaturi
+                        SET id = %s, id_oras = %s, valoare = %s
+                        WHERE id = %s;
+                        """,
+                        (temp['id'], temp['id_oras'], temp['id_oras'], id))
+        except psycopg2.errors.DataError:
+            cur.close()
+            conn.rollback()
+            app.logger.warning(id + ' not found in table')
+            return {}, 404
+        except psycopg2.errors.DatabaseError:
+            cur.close()
+            conn.rollback()
+            app.logger.error(str(temp) + ' could not be inserted in database')
+            return {}, 400
+
+        cur.close()
+        conn.commit()
+
+        app.logger.info('temperature with id='str(id) + ' was updated in database to ' + str(temp))
+        return {}, 200
+
+
+    def delete(self, id):
+        global app
+
+        # TODO: try: is id int? then convert to int
+
+        # Execute DELETE SQL operation
+        global conn
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                        DELETE FROM Temperaturi
+                        WHERE id = %s
+                        """,
+                        (id,))
+        except psycopg2.errors.DataError:
+            cur.close()
+            conn.rollback()
+            app.logger.warning(id + ' not found in table')
+            return {}, 404
+        except psycopg2.errors.DatabaseError:
+            cur.close()
+            conn.rollback()
+            app.logger.error('id=' + str(id) + ' could not be deleted from database')
+            return {}, 400
+
+        cur.close()
+        conn.commit()
+
+        app.logger.info('country with id='str(id) + ' was deleted from database')
+        return {}, 200
+
+    
+    def get(self):
+        global app
+
+        parser = reqparse.RequestParser()
+        parser.add_argument('lat', type=float)
+        parser.add_argument('lon', type=float)
+        # TODO: Check if from, until are correct timestamps?
+        parser.add_argument('from', type=str)
+        parser.add_argument('until', type=str)
+        args = parser.parse_args()
+
+        global conn
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                        SELECT FROM Temperaturi
+                        WHERE (latitudine = %(lat)s OR %(lat)s IS NULL)
+                          AND (longitudine = %(lon)s OR %(lon)s IS NULL)
+                          AND (timestamp >= %(from)s OR %(from)s IS NULL)
+                          AND (timestamp <= %(until)s OR %(until)s IS NULL);
+                        """,
+                        args)
+        except psycopg2.errors.DatabaseError:
+            cur.close()
+            app.logger.error('query with args ' + str(args) + ' failed')
+            return {}, 400
+
+        rows = cur.fetchall()
+        cur.close()
+
+        return rows, 200
+
+
+class TemperaturesCities(Resource):
+    def get(self, id):
+        global app
+
+        parser = reqparse.RequestParser()
+        # TODO: Check if from, until are correct timestamps?
+        parser.add_argument('from', type=str)
+        parser.add_argument('until', type=str)
+        args = parser.parse_args()
+        args['id'] = id
+
+        global conn
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                        SELECT FROM Temperaturi
+                        WHERE id_oras = %(id)s
+                          AND (timestamp >= %(from)s OR %(from)s IS NULL)
+                          AND (timestamp <= %(until)s OR %(until)s IS NULL);
+                        """,
+                        args)
+        except psycopg2.errors.DatabaseError:
+            cur.close()
+            app.logger.error('query with args ' + str(args) + ' failed')
+            return {}, 400
+
+        rows = cur.fetchall()
+        cur.close()
+
+        return rows, 200
+
+
+class TemperaturesCountries(Resource):
+    def get(self, id):
+        global app
+
+        parser = reqparse.RequestParser()
+        # TODO: Check if from, until are correct timestamps?
+        parser.add_argument('from', type=str)
+        parser.add_argument('until', type=str)
+        args = parser.parse_args()
+        args['id'] = id
+
+        global conn
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                        SELECT FROM Temperaturi
+                        WHERE id_oras = %(id)s
+                          AND (timestamp >= %(from)s OR %(from)s IS NULL)
+                          AND (timestamp <= %(until)s OR %(until)s IS NULL);
+                        """,
+                        args)
+        except psycopg2.errors.DatabaseError:
+            cur.close()
+            app.logger.error('query with args ' + str(args) + ' failed')
+            return {}, 400
+
+        rows = cur.fetchall()
+        cur.close()
+
+        return rows, 200
 
 # TODO: Close database cursors and connection during shutdown
 # TODO: Health check in docker compose before connection to DB
@@ -407,12 +667,15 @@ if __name__ == '__main__':
     conn = getConnection()
 
     api.add_resource(Countries, '/api/countries')
-    api.add_resource(Countries, '/api/countries/<id>')
+    api.add_resource(Countries, '/api/countries/<int:id>')
 
     api.add_resource(Countries, '/api/cities')
-    api.add_resource(Countries, '/api/cities/<id>')
+    api.add_resource(Countries, '/api/cities/<int:id>')
 
-    api.add_resource(Countries, '/api/cities')
-    api.add_resource(Countries, '/api/cities/<id>')
+    api.add_resource(Temperatures, '/api/temperatures')
+    api.add_resource(Temperatures, '/api/temperatures/<int:id>')
+
+    api.add_resource(TemperaturesCities, '/api/temperatures/cities/<int:id>')
+    api.add_resource(TemperaturesCountries, '/api/temperatures/countries/<int:id>')
 
     app.run(host='0.0.0.0', port=5000)
