@@ -370,7 +370,7 @@ class Cities(Resource):
         cur = conn.cursor()
         try:
             cur.execute("""
-                        DELETE FROM Tari
+                        DELETE FROM Orase
                         WHERE id = %s
                         """,
                         (id))
@@ -408,6 +408,9 @@ if __name__ == '__main__':
 
     api.add_resource(Countries, '/api/countries')
     api.add_resource(Countries, '/api/countries/<id>')
+
+    api.add_resource(Countries, '/api/cities')
+    api.add_resource(Countries, '/api/cities/<id>')
 
     api.add_resource(Countries, '/api/cities')
     api.add_resource(Countries, '/api/cities/<id>')
