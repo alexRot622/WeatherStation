@@ -1,7 +1,9 @@
 import logging
+import datetime
+from time import sleep
+
 from flask import Flask, request
 from flask_restful import Resource, Api, reqparse
-from time import sleep
 import psycopg2
 
 def getConnection():
@@ -11,6 +13,7 @@ def getConnection():
         user='pgsql',
         password='pgsql'
     )
+
 
 class Countries(Resource):
     # Check that the request body is correctly formatted as a country
@@ -130,7 +133,6 @@ class Countries(Resource):
     def put(self, id):
         global app
 
-        # TODO: try: is id int? then convert to int
         country = request.get_json()
         err = Countries.checkPutRequest(country)
         if err:
@@ -166,8 +168,6 @@ class Countries(Resource):
 
     def delete(self, id):
         global app
-
-        # TODO: try: is id int? then convert to int
 
         # Execute DELETE SQL operation
         global conn
@@ -320,7 +320,6 @@ class Cities(Resource):
     def put(self, id):
         global app
 
-        # TODO: try: is id int? then convert to int
         city = request.get_json()
         err = Cities.checkPutRequest(city)
         if err:
@@ -357,8 +356,6 @@ class Cities(Resource):
     def delete(self, id):
         global app
 
-        # TODO: try: is id int? then convert to int
-
         # Execute DELETE SQL operation
         global conn
         cur = conn.cursor()
@@ -385,14 +382,12 @@ class Cities(Resource):
         app.logger.info('country with id=' + str(id) + ' was deleted from database')
         return {}, 200
 
+
 class CitiesCountry(Resource):
     def get(self, id):
         global app
 
-        # TODO: try: is id int? then convert to int
-
         global conn
-
         cur = conn.cursor()
         cur.execute("""
                     SELECT * FROM Orase
@@ -408,8 +403,9 @@ class CitiesCountry(Resource):
 
         return rows, 200
 
+
 class Temperatures(Resource):
-    # Check that the request body is correctly formatted as a city
+    # Check that the request body is correctly formatted as a temperature
     def checkTemperature(req):
         global app
 
@@ -461,6 +457,7 @@ class Temperatures(Resource):
 
         return Cities.checkCity(req)
 
+
     def post(self):
         global app
 
@@ -509,7 +506,6 @@ class Temperatures(Resource):
     def put(self, id):
         global app
 
-        # TODO: try: is id int? then convert to int
         temp = request.get_json()
         err = Cities.checkPutRequest(temp)
         if err:
@@ -546,8 +542,6 @@ class Temperatures(Resource):
     def delete(self, id):
         global app
 
-        # TODO: try: is id int? then convert to int
-
         # Execute DELETE SQL operation
         global conn
         cur = conn.cursor()
@@ -581,10 +575,22 @@ class Temperatures(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('lat', default=None, required=False, type=float, location='args')
         parser.add_argument('lon', default=None, required=False, type=float, location='args')
-        # TODO: Check if from, until are correct timestamps?
         parser.add_argument('from', default=None, required=False, type=str, location='args')
         parser.add_argument('until', default=None, required=False, type=str, location='args')
+
         args = parser.parse_args()
+        if args['from']:
+            try:
+                datetime.datetime.strptime(args['from'], '%Y-%m-%d')
+            except ValueError:
+                app.logger.error(str(args['from']) + ' not a YYYY-MM-DD date')
+                return {}, 400
+        if args['until']:
+            try:
+                datetime.datetime.strptime(args['until'], '%Y-%m-%d')
+            except ValueError:
+                app.logger.error(str(args['until']) + ' not a YYYY-MM-DD date')
+                return {}, 400
 
         global conn
         cur = conn.cursor()
@@ -617,11 +623,23 @@ class TemperaturesCities(Resource):
         global app
 
         parser = reqparse.RequestParser()
-        # TODO: Check if from, until are correct timestamps?
         parser.add_argument('from', default=None, required=False, type=str, location='args')
         parser.add_argument('until', default=None, required=False, type=str, location='args')
+
         args = parser.parse_args()
         args['id'] = id
+        if args['from']:
+            try:
+                datetime.datetime.strptime(args['from'], '%Y-%m-%d')
+            except ValueError:
+                app.logger.error(str(args['from']) + ' not a YYYY-MM-DD date')
+                return {}, 400
+        if args['until']:
+            try:
+                datetime.datetime.strptime(args['until'], '%Y-%m-%d')
+            except ValueError:
+                app.logger.error(str(args['until']) + ' not a YYYY-MM-DD date')
+                return {}, 400
 
         global conn
         cur = conn.cursor()
@@ -649,11 +667,23 @@ class TemperaturesCountries(Resource):
         global app
 
         parser = reqparse.RequestParser()
-        # TODO: Check if from, until are correct timestamps?
         parser.add_argument('from', default=None, required=False, type=str, location='args')
         parser.add_argument('until', default=None, required=False, type=str, location='args')
+
         args = parser.parse_args()
         args['id'] = id
+        if args['from']:
+            try:
+                datetime.datetime.strptime(args['from'], '%Y-%m-%d')
+            except ValueError:
+                app.logger.error(str(args['from']) + ' not a YYYY-MM-DD date')
+                return {}, 400
+        if args['until']:
+            try:
+                datetime.datetime.strptime(args['until'], '%Y-%m-%d')
+            except ValueError:
+                app.logger.error(str(args['until']) + ' not a YYYY-MM-DD date')
+                return {}, 400
 
         global conn
         cur = conn.cursor()
