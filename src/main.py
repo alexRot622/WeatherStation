@@ -554,7 +554,7 @@ class Temperatures(Resource):
         try:
             cur.execute("""
                         DELETE FROM Temperaturi
-                        WHERE id = %s
+                        WHERE id = %s;
                         """,
                         (id,))
         except psycopg2.errors.DataError:
@@ -579,22 +579,22 @@ class Temperatures(Resource):
         global app
 
         parser = reqparse.RequestParser()
-        parser.add_argument('lat', default=None, required=False, type=float)
-        parser.add_argument('lon', default=None, required=False, type=float)
+        parser.add_argument('lat', default=None, required=False, type=float, location='args')
+        parser.add_argument('lon', default=None, required=False, type=float, location='args')
         # TODO: Check if from, until are correct timestamps?
-        parser.add_argument('from', default=None, required=False, type=str)
-        parser.add_argument('until', default=None, required=False, type=str)
+        parser.add_argument('from', default=None, required=False, type=str, location='args')
+        parser.add_argument('until', default=None, required=False, type=str, location='args')
         args = parser.parse_args()
 
         global conn
         cur = conn.cursor()
         try:
             cur.execute("""
-                        SELECT FROM Temperaturi
+                        SELECT FROM Temperaturi NATURAL JOIN Orase
                         WHERE (latitudine = %(lat)s OR %(lat)s IS NULL)
                           AND (longitudine = %(lon)s OR %(lon)s IS NULL)
-                          AND (timestamp >= %(from)s OR %(from)s IS NULL)
-                          AND (timestamp <= %(until)s OR %(until)s IS NULL);
+                          AND (%(from)s IS NULL OR timestamp >= %(from)s)
+                          AND (%(until)s IS NULL OR timestamp <= %(until)s);
                         """,
                         args)
         except psycopg2.errors.DatabaseError:
@@ -618,8 +618,8 @@ class TemperaturesCities(Resource):
 
         parser = reqparse.RequestParser()
         # TODO: Check if from, until are correct timestamps?
-        parser.add_argument('from', default=None, required=False, type=str)
-        parser.add_argument('until', default=None, required=False, type=str)
+        parser.add_argument('from', default=None, required=False, type=str, location='args')
+        parser.add_argument('until', default=None, required=False, type=str, location='args')
         args = parser.parse_args()
         args['id'] = id
 
@@ -629,8 +629,8 @@ class TemperaturesCities(Resource):
             cur.execute("""
                         SELECT FROM Temperaturi
                         WHERE id_oras = %(id)s
-                          AND (timestamp >= %(from)s OR %(from)s IS NULL)
-                          AND (timestamp <= %(until)s OR %(until)s IS NULL);
+                          AND (%(from)s IS NULL OR timestamp >= %(from)s)
+                          AND (%(until)s IS NULL OR timestamp <= %(until)s);
                         """,
                         args)
         except psycopg2.errors.DatabaseError:
@@ -650,8 +650,8 @@ class TemperaturesCountries(Resource):
 
         parser = reqparse.RequestParser()
         # TODO: Check if from, until are correct timestamps?
-        parser.add_argument('from', default=None, required=False, type=str)
-        parser.add_argument('until', default=None, required=False, type=str)
+        parser.add_argument('from', default=None, required=False, type=str, location='args')
+        parser.add_argument('until', default=None, required=False, type=str, location='args')
         args = parser.parse_args()
         args['id'] = id
 
@@ -659,10 +659,10 @@ class TemperaturesCountries(Resource):
         cur = conn.cursor()
         try:
             cur.execute("""
-                        SELECT FROM Temperaturi
-                        WHERE id_oras = %(id)s
-                          AND (timestamp >= %(from)s OR %(from)s IS NULL)
-                          AND (timestamp <= %(until)s OR %(until)s IS NULL);
+                        SELECT FROM Temperaturi tmp NATURAL JOIN Orase o NATURAL JOIN Tari t
+                        WHERE t.id = %(id)s
+                          AND (%(from)s IS NULL OR tmp.timestamp >= %(from)s)
+                          AND (%(until)s IS NULL OR tmp.timestamp <= %(until)s);
                         """,
                         args)
         except psycopg2.errors.DatabaseError:
