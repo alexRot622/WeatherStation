@@ -1,4 +1,6 @@
 .git
-db
 *.md
+*.json
 README
+/db/
+/venv/
