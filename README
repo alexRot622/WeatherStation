@@ -1,0 +1,4 @@
+Proiectul a fost realizat folosind Flask pentru API REST, PostgreSQL pentru baza de date si pgAdmin ca utilitar pentru baza de date.
+API-ul este expus la portul 5000. Am creat cate o clasa pentru fiecare ruta definita in enuntul temei.
+Datele din baza de date se vor afla in ./db/data, iar script-ul de initializare pentru baza de date se afla in ./db/init/create-table.sql
+Pentru utilitarul de gestiune a bazei de date, datele de login se afla docker-compose.yml
