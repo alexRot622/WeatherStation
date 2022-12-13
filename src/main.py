@@ -1,7 +1,6 @@
 import logging
 import datetime
 import signal
-from time import sleep
 
 from flask import Flask, request
 from flask_restful import Resource, Api, reqparse
@@ -31,6 +30,7 @@ def handler(signum, frame):
 
 class Countries(Resource):
     # Check that the request body is correctly formatted as a country
+    @staticmethod
     def checkCountry(req):
         global app
 
@@ -54,6 +54,7 @@ class Countries(Resource):
 
 
     # Check that the request body is correctly formatted for POST request
+    @staticmethod
     def checkPostRequest(req):
         global app
 
@@ -65,6 +66,7 @@ class Countries(Resource):
 
 
     # Check that the request body is correctly formatted for PUT request
+    @staticmethod
     def checkPutRequest(req):
         global app
 
@@ -212,6 +214,7 @@ class Countries(Resource):
 
 class Cities(Resource):
     # Check that the request body is correctly formatted as a city
+    @staticmethod
     def checkCity(req):
         global app
 
@@ -241,6 +244,7 @@ class Cities(Resource):
 
 
     # Check that the request body is correctly formatted for POST request
+    @staticmethod
     def checkPostRequest(req):
         global app
 
@@ -252,6 +256,7 @@ class Cities(Resource):
 
 
     # Check that the request body is correctly formatted for PUT request
+    @staticmethod
     def checkPutRequest(req):
         global app
 
@@ -357,7 +362,7 @@ class Cities(Resource):
         except psycopg2.errors.DatabaseError:
             cur.close()
             conn.rollback()
-            app.logger.error(str(country) + ' could not be inserted in database')
+            app.logger.error(str(city) + ' could not be inserted in database')
             return {}, 400
 
         cur.close()
@@ -420,6 +425,7 @@ class CitiesCountry(Resource):
 
 class Temperatures(Resource):
     # Check that the request body is correctly formatted as a temperature
+    @staticmethod
     def checkTemperature(req):
         global app
 
@@ -443,6 +449,7 @@ class Temperatures(Resource):
 
 
     # Check that the request body is correctly formatted for POST request
+    @staticmethod
     def checkPostRequest(req):
         global app
 
@@ -450,10 +457,11 @@ class Temperatures(Resource):
             app.logger.warning('request ' + str(req) + ' does not contain correct number of parameters')
             return 400
 
-        return Cities.checkCity(req)
+        return Temperatures.checkTemperature(req)
 
 
     # Check that the request body is correctly formatted for PUT request
+    @staticmethod
     def checkPutRequest(req):
         global app
 
@@ -469,7 +477,7 @@ class Temperatures(Resource):
             app.logger.warning('in request ' + str(req) + ', id is not an integer')
             return 400
 
-        return Cities.checkCity(req)
+        return Temperatures.checkTemperature(req)
 
 
     def post(self):
@@ -486,20 +494,20 @@ class Temperatures(Resource):
         try:
             cur.execute("""
                         INSERT INTO Temperaturi(valoare, timestamp, id_oras)
-                        VALUES (%(valoare)s, %(timestamp)s, %(idOras)s)
+                        VALUES (%(valoare)s, current_timestamp, %(idOras)s)
                         RETURNING id;
                         """,
                         temp)
         except psycopg2.errors.UniqueViolation:
             cur.close()
             conn.rollback()
-            app.logger.warning('Temperature for ' + str((temp['id_oras'], temp['timestamp'])) + ' already exists in table')
+            app.logger.warning('Temperature for ' + str((temp['idOras'], temp['timestamp'])) + ' already exists in table')
             return {}, 409
         except psycopg2.errors.DatabaseError:
             cur.close()
             conn.rollback()
             app.logger.error(str(temp) + ' could not be inserted in database')
-            return {}, 409
+            return {}, 400
 
         # Retrieve ID of the inserted temperature, if the insert was succesful
         try:
@@ -521,7 +529,7 @@ class Temperatures(Resource):
         global app
 
         temp = request.get_json()
-        err = Cities.checkPutRequest(temp)
+        err = Temperatures.checkPutRequest(temp)
         if err:
             return {}, err
 
@@ -534,7 +542,7 @@ class Temperatures(Resource):
                         SET id = %s, id_oras = %s, valoare = %s
                         WHERE id = %s;
                         """,
-                        (temp['id'], temp['id_oras'], temp['id_oras'], id))
+                        (temp['id'], temp['idOras'], temp['valoare'], id))
         except psycopg2.errors.DataError:
             cur.close()
             conn.rollback()
@@ -595,13 +603,13 @@ class Temperatures(Resource):
         args = parser.parse_args()
         if args['from']:
             try:
-                datetime.datetime.strptime(args['from'], '%Y-%m-%d')
+                args['from'] = datetime.datetime.strptime(args['from'], '%Y-%m-%d')
             except ValueError:
                 app.logger.error(str(args['from']) + ' not a YYYY-MM-DD date')
                 return {}, 400
         if args['until']:
             try:
-                datetime.datetime.strptime(args['until'], '%Y-%m-%d')
+                args['until'] = datetime.datetime.strptime(args['until'], '%Y-%m-%d')
             except ValueError:
                 app.logger.error(str(args['until']) + ' not a YYYY-MM-DD date')
                 return {}, 400
@@ -610,11 +618,11 @@ class Temperatures(Resource):
         cur = conn.cursor()
         try:
             cur.execute("""
-                        SELECT FROM Temperaturi NATURAL JOIN Orase
-                        WHERE (latitudine = %(lat)s OR %(lat)s IS NULL)
-                          AND (longitudine = %(lon)s OR %(lon)s IS NULL)
-                          AND (%(from)s IS NULL OR timestamp >= %(from)s)
-                          AND (%(until)s IS NULL OR timestamp <= %(until)s);
+                        SELECT t.id, t.valoare, t.timestamp FROM Temperaturi t JOIN Orase o ON t.id_oras = o.id
+                        WHERE (%(lat)s IS NULL OR abs(o.latitudine - %(lat)s) < 0.001)
+                          AND (%(lon)s IS NULL OR abs(o.longitudine - %(lon)s) < 0.001)
+                          AND (%(from)s IS NULL OR t.timestamp >= %(from)s)
+                          AND (%(until)s IS NULL OR t.timestamp <= %(until)s);
                         """,
                         args)
         except psycopg2.errors.DatabaseError:
@@ -628,6 +636,9 @@ class Temperatures(Resource):
         # Format response as a list of dictionaries
         cols = ['id', 'valoare', 'timestamp']
         rows = [dict(zip(cols, row)) for row in rows]
+        for row in rows:
+            row['timestamp'] = row['timestamp'].strftime("%Y-%m-%d")
+        app.logger.info(rows)
 
         return rows, 200
 
@@ -644,13 +655,13 @@ class TemperaturesCities(Resource):
         args['id'] = id
         if args['from']:
             try:
-                datetime.datetime.strptime(args['from'], '%Y-%m-%d')
+                args['from'] = datetime.datetime.strptime(args['from'], '%Y-%m-%d')
             except ValueError:
                 app.logger.error(str(args['from']) + ' not a YYYY-MM-DD date')
                 return {}, 400
         if args['until']:
             try:
-                datetime.datetime.strptime(args['until'], '%Y-%m-%d')
+                args['until'] = datetime.datetime.strptime(args['until'], '%Y-%m-%d')
             except ValueError:
                 app.logger.error(str(args['until']) + ' not a YYYY-MM-DD date')
                 return {}, 400
@@ -659,7 +670,7 @@ class TemperaturesCities(Resource):
         cur = conn.cursor()
         try:
             cur.execute("""
-                        SELECT FROM Temperaturi
+                        SELECT id, valoare, timestamp FROM Temperaturi
                         WHERE id_oras = %(id)s
                           AND (%(from)s IS NULL OR timestamp >= %(from)s)
                           AND (%(until)s IS NULL OR timestamp <= %(until)s);
@@ -672,6 +683,14 @@ class TemperaturesCities(Resource):
 
         rows = cur.fetchall()
         cur.close()
+
+
+        # Format response as a list of dictionaries
+        cols = ['id', 'valoare', 'timestamp']
+        rows = [dict(zip(cols, row)) for row in rows]
+        for row in rows:
+            row['timestamp'] = row['timestamp'].strftime("%Y-%m-%d")
+        app.logger.info(rows)
 
         return rows, 200
 
@@ -688,13 +707,13 @@ class TemperaturesCountries(Resource):
         args['id'] = id
         if args['from']:
             try:
-                datetime.datetime.strptime(args['from'], '%Y-%m-%d')
+                args['from'] = datetime.datetime.strptime(args['from'], '%Y-%m-%d')
             except ValueError:
                 app.logger.error(str(args['from']) + ' not a YYYY-MM-DD date')
                 return {}, 400
         if args['until']:
             try:
-                datetime.datetime.strptime(args['until'], '%Y-%m-%d')
+                args['until'] = datetime.datetime.strptime(args['until'], '%Y-%m-%d')
             except ValueError:
                 app.logger.error(str(args['until']) + ' not a YYYY-MM-DD date')
                 return {}, 400
@@ -703,7 +722,7 @@ class TemperaturesCountries(Resource):
         cur = conn.cursor()
         try:
             cur.execute("""
-                        SELECT FROM Temperaturi tmp NATURAL JOIN Orase o NATURAL JOIN Tari t
+                        SELECT tmp.id, tmp.valoare, tmp.timestamp FROM Temperaturi tmp JOIN Orase o ON tmp.id_oras = o.id JOIN Tari t ON o.id_tara = t.id
                         WHERE t.id = %(id)s
                           AND (%(from)s IS NULL OR tmp.timestamp >= %(from)s)
                           AND (%(until)s IS NULL OR tmp.timestamp <= %(until)s);
@@ -716,6 +735,13 @@ class TemperaturesCountries(Resource):
 
         rows = cur.fetchall()
         cur.close()
+
+        # Format response as a list of dictionaries
+        cols = ['id', 'valoare', 'timestamp']
+        rows = [dict(zip(cols, row)) for row in rows]
+        for row in rows:
+            row['timestamp'] = row['timestamp'].strftime("%Y-%m-%d")
+        app.logger.info(rows)
 
         return rows, 200
 
